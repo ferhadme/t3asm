@@ -22,7 +22,7 @@ section .data
   px: db 'X'
   py: db 'Y'
 
-  user_inp_len: equ 3
+  user_inp_len: equ 100
 
   out_row_len: equ 6 ; +1(tail)
   out_col_len: equ 7 ; +1(\n)
@@ -50,15 +50,17 @@ global _start
 _start:
   mov rcx, 0
   mov rsi, board
-init_game:
+  mov al, 'X'
+  mov [p_turn], al
+
+init_board:
   mov al, 32
   mov [rsi], al
   inc rsi
   inc rcx
   cmp rcx, board_len
-  jl init_game
+  jl init_board
 
-change_turn:
   mov al, [px]
   mov [p_turn], al
 
@@ -105,7 +107,8 @@ print_sep_and_data:
   mov al, [sep]
   mov [rsi], al
   inc rsi
-  mov al, [board + r9]
+  mov al, [rdi]
+  inc rdi
   mov [rsi], al
   inc rsi
   inc r9
@@ -149,18 +152,56 @@ game_stdin:
   mov rdx, user_inp_len
   syscall
 
-  ; eax = row, ebx = col
-  mov eax, [user_inp]
-  mov ebx, [user_inp + 2]
+  ; al = row, bl = col
+  mov al, [user_inp]
+  mov bl, [user_inp + 2]
+  sub al, '0'
+  sub bl, '0'
+
 validate_input:
-  cmp eax, 0
+  cmp al, 0
   jl fatal_input
-  cmp eax, 2
+  cmp al, 2
   jg fatal_input
-  cmp ebx, 0
+  cmp bl, 0
   jl fatal_input
-  cmp ebx, 2
+  cmp bl, 2
   jg fatal_input
+
+board_update:
+
+  ; board_coord = al * 3 + bl
+  mov rcx, 3
+  mul rcx; rax
+  add rax, rbx
+
+  mov rdi, board
+  add rdi, rax
+  mov al, [p_turn]
+  mov [rdi], al
+
+  mov al, [p_turn]
+  cmp al, 'X'
+  je y_turn
+  cmp al, 'Y'
+  je x_turn
+
+x_turn:
+  mov al, 'X'
+  mov [p_turn], al
+  jmp check_winner
+y_turn:
+  mov al, 'Y'
+  mov [p_turn], al
+
+check_winner:
+  jmp print_game
+
+exit:
+  mov rdi, 0
+  mov rax, 0x3c
+  syscall
+
 fatal_input:
   mov rax, 0x01
   mov rdi, 1
@@ -168,10 +209,3 @@ fatal_input:
   mov rdx, wrong_coords_fatal_msg_len
   syscall
   jmp print_turn
-
-check_winner:
-
-exit:
-  mov rax, 0x3c
-  mov rdi, 0
-  syscall
