@@ -16,6 +16,10 @@ section .data
   p_turn_msg_suffix: db ' turn:', 10
   p_turn_msg_suffix_len: equ 7
 
+  p_won_msg_suffix: db ' won!', 10
+  p_won_msg_suffix_len: equ 6
+  p_won_msg_len: equ 7
+
   wrong_coords_fatal_msg: db 'Bad coordinates. Input in following format: [0..2] [0..2]', 10, 10
   wrong_coords_fatal_msg_len: equ 59
 
@@ -42,8 +46,11 @@ section .bss
   board_templ resb board_out_len
   board resb board_len
   p_turn_msg resb p_turn_msg_len
+  p_won_msg resb p_won_msg_len
 
   user_inp resb user_inp_len
+
+  is_game_finished resb 1
 
 section .text
 global _start
@@ -145,6 +152,10 @@ stdout:
   mov rdx, board_out_len
   syscall
 
+  mov al, [is_game_finished]
+  cmp al, 1
+  je winner
+
 game_stdin:
   mov rax, 0x00
   mov rdi, 0
@@ -180,6 +191,14 @@ board_update:
   mov al, [p_turn]
   mov [rdi], al
 
+check_winner:
+  ; horizontal scan
+  mov rdi, board
+  mov rsi, 0
+  call linear_scan
+  cmp rax, 1
+  je winner
+
   mov al, [p_turn]
   cmp al, 'X'
   je y_turn
@@ -189,17 +208,30 @@ board_update:
 x_turn:
   mov al, 'X'
   mov [p_turn], al
-  jmp check_winner
+  jmp print_game
 y_turn:
   mov al, 'Y'
   mov [p_turn], al
-
-check_winner:
   jmp print_game
 
-exit:
-  mov rdi, 0
-  mov rax, 0x3c
+winner:
+  mov rdi, is_game_finished
+  mov al, 1
+  mov [rdi], al
+  jmp print_game
+
+  mov al, [p_turn]
+  mov [p_won_msg], al
+
+  mov rsi, p_won_msg_suffix
+  mov rdi, p_won_msg + 1
+  mov rcx, p_won_msg_suffix_len
+  rep movsb
+
+  mov rax, 0x01
+  mov rdi, 0x00
+  mov rsi, p_turn_msg
+  mov rdx, p_turn_msg_len
   syscall
 
 fatal_input:
@@ -209,3 +241,46 @@ fatal_input:
   mov rdx, wrong_coords_fatal_msg_len
   syscall
   jmp print_turn
+
+exit:
+  mov rdi, 0
+  mov rax, 0x3c
+  syscall
+
+; FIXME: not working
+; function
+; rdi: address of board
+; rsi: whether scan is horizontal(0) or vertical(1)
+; returns (rax) : 1 if [p_turn] wins, otherwise 0
+linear_scan:
+  mov rcx, 0
+  mov dl, [p_turn]
+  mov rax, 1 ; true
+scan_start:
+  cmp rcx, 4
+  je ls_ret
+  cmp rsi, 1
+  je ver
+hor:
+  ; 0 1 2
+  ; 3 4 5
+  ; 6 7 8
+  mov al, [board + rcx * 3]
+  jmp scan_iteration
+ver:
+  mov al, [board + rcx]
+scan_iteration:
+  inc rcx
+  cmp al, dl
+  je scan_start
+  jmp scan_failed
+scan_failed:
+  mov rax, 0
+ls_ret:
+  ret
+
+; function
+; rdi: address of board
+; returns: 1 if [p_turn] wins, otherwise 0
+diagonal_scan:
+; TODO: Implement
