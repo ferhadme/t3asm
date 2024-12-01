@@ -10,7 +10,6 @@ section .data
   bar: db '-'
   sep: db '|'
 
-
   p_turn_msg_len: equ 15
   p_turn_msg_prefix: db 'Player '
   p_turn_msg_prefix_len: equ 7
@@ -20,9 +19,9 @@ section .data
   px: db 'X'
   py: db 'Y'
 
-  board_out_len: equ 56
   out_row_len: equ 6 ; +1(tail)
   out_col_len: equ 7 ; +1(\n)
+  board_out_len: equ 7 * 8
 
 section .bss
   p_turn resb 1
@@ -42,8 +41,6 @@ section .bss
 section .text
 global _start
 _start:
-  mov al, [px]
-
   mov rcx, 0
   mov rdi, board
 init_game:
@@ -55,6 +52,7 @@ init_game:
   jl init_game
 
 change_turn:
+  mov al, [px]
   mov [p_turn], al
 
 print_turn:
@@ -77,15 +75,6 @@ print_turn:
   mov rdx, p_turn_msg_len
   syscall
 
-
-; 01234567
-; -------\n 0
-; |X|X|X|\n 1
-; -------\n 2
-; |X|X|X|\n 3
-; -------\n 4
-; |X|X|X|\n 5
-; -------\n 6
 
 print_game: ; 0..3
   mov rsi, board
