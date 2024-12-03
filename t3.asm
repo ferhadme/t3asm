@@ -193,11 +193,14 @@ board_update:
 
 check_winner:
   ; horizontal scan
-  mov rdi, board
-  mov rsi, 0
-  call linear_scan
+  call hor_linear_scan
   cmp rax, 1
-  je winner
+  je completed_board
+
+  ; vertical scan
+  ;call hor_linear_scan
+  ;cmp rax, 1
+  ;je completed_board
 
   mov al, [p_turn]
   cmp al, 'X'
@@ -214,12 +217,13 @@ y_turn:
   mov [p_turn], al
   jmp print_game
 
-winner:
+completed_board:
   mov rdi, is_game_finished
   mov al, 1
   mov [rdi], al
   jmp print_game
 
+winner:
   mov al, [p_turn]
   mov [p_won_msg], al
 
@@ -230,8 +234,13 @@ winner:
 
   mov rax, 0x01
   mov rdi, 0x00
-  mov rsi, p_turn_msg
-  mov rdx, p_turn_msg_len
+  mov rsi, p_won_msg
+  mov rdx, p_won_msg_len
+  syscall
+
+exit:
+  mov rdi, 0
+  mov rax, 0x3c
   syscall
 
 fatal_input:
@@ -242,45 +251,49 @@ fatal_input:
   syscall
   jmp print_turn
 
-exit:
-  mov rdi, 0
-  mov rax, 0x3c
-  syscall
-
-; FIXME: not working
+; FIXME: Not working ???
 ; function
-; rdi: address of board
-; rsi: whether scan is horizontal(0) or vertical(1)
-; returns (rax) : 1 if [p_turn] wins, otherwise 0
-linear_scan:
-  mov rcx, 0
-  mov dl, [p_turn]
-  mov rax, 1 ; true
-scan_start:
-  cmp rcx, 4
-  je ls_ret
-  cmp rsi, 1
-  je ver
-hor:
+; horizontal linear scan
+; rax: 1 if [p_turn] wins, otherwise 0
   ; 0 1 2
   ; 3 4 5
   ; 6 7 8
-  mov al, [board + rcx * 3]
-  jmp scan_iteration
-ver:
-  mov al, [board + rcx]
-scan_iteration:
-  inc rcx
+hor_linear_scan:
+  mov rcx, 0
+  mov rax, 1 ; true
+scan_start:
+  cmp rcx, 6
+  jg scan_fail
+  mov dl, [board + rcx]
+  mov r8, 1
+scan_iter:
+  cmp r8, 3
+  je scan_success
+
+  mov rsi, rcx
+  add rsi, r8
+  mov al, [board + rsi]
   cmp al, dl
-  je scan_start
-  jmp scan_failed
-scan_failed:
+  jne scan_line_end
+  inc r8
+  jmp scan_iter
+scan_line_end:
+  add rcx, 3
+  jmp scan_start
+scan_fail:
   mov rax, 0
-ls_ret:
+  ret
+scan_success:
   ret
 
 ; function
-; rdi: address of board
-; returns: 1 if [p_turn] wins, otherwise 0
+; vertical linear scan
+; rax: 1 if [p_turn] wins, otherwise 0
+ver_linear_scan:
+; TODO: Implement
+
+; function
+; diagonal scan
+; rax: 1 if [p_turn] wins, otherwise 0
 diagonal_scan:
 ; TODO: Implement
