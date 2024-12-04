@@ -260,19 +260,26 @@ fatal_input:
   ; 6 7 8
 hor_linear_scan:
   mov rcx, 0
-  mov rax, 1 ; true
 scan_start:
   cmp rcx, 6
   jg scan_fail
-  mov dl, [board + rcx]
+  mov rsi, board
+  add rsi, rcx
+  mov dl, [rsi]
+
   mov r8, 1
 scan_iter:
   cmp r8, 3
   je scan_success
 
-  mov rsi, rcx
+  mov rsi, board
+  add rsi, rcx
   add rsi, r8
-  mov al, [board + rsi]
+  mov al, [rsi]
+
+  cmp al, 32
+  je scan_line_end
+
   cmp al, dl
   jne scan_line_end
   inc r8
@@ -284,6 +291,7 @@ scan_fail:
   mov rax, 0
   ret
 scan_success:
+  mov rax, 1
   ret
 
 ; function
