@@ -2,7 +2,7 @@
 ;; Copyright (c) 2024, Farhad Mehdizada (@ferhadme) ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; A lightweight, terminal-based implementation of the classic Tic Tac Toe game written in Netwide Assembler
+;; A lightweight, terminal-based implementation of the classic Tic Tac Toe game written in 64-bit Netwide Assembler
 
 section .data
   board_len: equ 9
@@ -198,9 +198,14 @@ check_winner:
   je completed_board
 
   ; vertical scan
-  ;call hor_linear_scan
-  ;cmp rax, 1
-  ;je completed_board
+  call ver_linear_scan
+  cmp rax, 1
+  je completed_board
+
+  ; diagonal scan
+  call diagonal_scan
+  cmp rax, 1
+  je completed_board
 
   mov al, [p_turn]
   cmp al, 'X'
@@ -251,26 +256,25 @@ fatal_input:
   syscall
   jmp print_turn
 
-; FIXME: Not working ???
 ; function
 ; horizontal linear scan
 ; rax: 1 if [p_turn] wins, otherwise 0
-  ; 0 1 2
-  ; 3 4 5
-  ; 6 7 8
+;   0 1 2
+;   3 4 5
+;   6 7 8
 hor_linear_scan:
   mov rcx, 0
-scan_start:
+hscan_start:
   cmp rcx, 6
-  jg scan_fail
+  jg hscan_fail
   mov rsi, board
   add rsi, rcx
   mov dl, [rsi]
 
   mov r8, 1
-scan_iter:
+hscan_iter:
   cmp r8, 3
-  je scan_success
+  je hscan_success
 
   mov rsi, board
   add rsi, rcx
@@ -278,30 +282,115 @@ scan_iter:
   mov al, [rsi]
 
   cmp al, 32
-  je scan_line_end
+  je hscan_line_end
 
   cmp al, dl
-  jne scan_line_end
+  jne hscan_line_end
   inc r8
-  jmp scan_iter
-scan_line_end:
+  jmp hscan_iter
+hscan_line_end:
   add rcx, 3
-  jmp scan_start
-scan_fail:
+  jmp hscan_start
+hscan_fail:
   mov rax, 0
   ret
-scan_success:
+hscan_success:
   mov rax, 1
   ret
 
 ; function
 ; vertical linear scan
 ; rax: 1 if [p_turn] wins, otherwise 0
+;   0 1 2
+;   3 4 5
+;   6 7 8
 ver_linear_scan:
-; TODO: Implement
+  mov rcx, 0
+vscan_start:
+  cmp rcx, 2
+  jg vscan_fail
+  mov rsi, board
+  add rsi, rcx
+  mov dl, [rsi]
+
+  mov r8, 3
+vscan_iter:
+  cmp r8, 6
+  jg vscan_success
+
+  mov rsi, board
+  add rsi, rcx
+  add rsi, r8
+  mov al, [rsi]
+
+  cmp al, 32
+  je vscan_line_end
+
+  cmp al, dl
+  jne vscan_line_end
+  add r8, 3
+  jmp vscan_iter
+vscan_line_end:
+  add rcx, 1
+  jmp vscan_start
+vscan_fail:
+  mov rax, 0
+  ret
+vscan_success:
+  mov rax, 1
+  ret
 
 ; function
 ; diagonal scan
 ; rax: 1 if [p_turn] wins, otherwise 0
+;   0 1 2
+;   3 4 5
+;   6 7 8
 diagonal_scan:
-; TODO: Implement
+  mov rcx, 0
+  mov rsi, board
+  add rsi, rcx
+  mov dl, [rsi]
+  mov r8, 4 ; +=4
+dscan_1:
+  cmp r8, 8
+  jg dscan_success
+  mov rsi, board
+  add rsi, rcx
+  add rsi, r8
+  mov al, [rsi]
+
+  cmp al, 32
+  je dscan_continue
+
+  cmp al, dl
+  jne dscan_continue
+  add r8, 4
+  jmp dscan_1
+dscan_continue:
+  mov rcx, 2
+  mov rsi, board
+  add rsi, rcx
+  mov dl, [rsi]
+  mov r8, 2 ; +=2
+dscan_2:
+  cmp r8, 4
+  jg dscan_success
+  mov rsi, board
+  add rsi, rcx
+  add rsi, r8
+  mov al, [rsi]
+
+  cmp al, 32
+  je dscan_fail
+
+  cmp al, dl
+  jne dscan_fail
+  add r8, 2
+  jmp dscan_2
+dscan_fail:
+  mov rax, 0
+  ret
+dscan_success:
+  mov rax, 1
+  ret
